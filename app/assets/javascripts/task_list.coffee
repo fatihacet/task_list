@@ -149,12 +149,17 @@ class TaskList
     @field.dispatchEvent changeEvent
 
     unless changeEvent.defaultPrevented
-      @field.value = TaskList.updateSource(@field.value, index, item.checked)
+      { result, lineNumber, lineSource } = TaskList.updateSource(@field.value, index, item.checked)
+
+      @field.value = result
       changeEvent = createEvent 'change'
       @field.dispatchEvent changeEvent
-      changedEvent = createEvent 'tasklist:changed',
+      changedEvent = createEvent 'tasklist:changed', {
         index: index
         checked: item.checked
+        lineNumber: lineNumber
+        lineSource: lineSource
+      }
       @field.dispatchEvent changedEvent
 
   # Static interface
@@ -220,7 +225,10 @@ class TaskList
       split("\n")
     index = 0
     inCodeBlock = false
-    result = for line in source.split("\n")
+    lineNumber;
+    lineSource;
+
+    result = for line, i in source.split("\n")
       if inCodeBlock
         # Lines inside of a code block are ignored.
         if line.match(@endFencesPattern)
@@ -232,13 +240,19 @@ class TaskList
       else if line in clean && line.match(@itemPattern)
         index += 1
         if index == itemIndex
+          lineNumber = i + 1
+          lineSource = line
           line =
             if checked
               line.replace(@incompletePattern, @complete)
             else
               line.replace(@completePattern, @incomplete)
       line
-    result.join("\n")
+    return {
+      result: result.join("\n")
+      lineNumber: lineNumber
+      lineSource: lineSource
+    }
 
 if typeof jQuery != 'undefined'
   jQuery.fn.taskList = (method) ->
